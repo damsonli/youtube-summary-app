@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend
+    container_name: youtube-analyzer-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - FROM_EMAIL=${FROM_EMAIL}
+      - SCHEDULE_TIME=${SCHEDULE_TIME:-09:00}
+      - SCHEDULE_TIMES=${SCHEDULE_TIMES}
+      - TIMEZONE=${TIMEZONE:-UTC}
+      - DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: youtube-analyzer-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge

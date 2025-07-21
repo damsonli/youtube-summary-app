@@ -1,0 +1,9 @@
+fastapi==0.116.1
+uvicorn==0.35.0
+yt-dlp==2025.6.30
+ollama==0.5.1
+python-multipart==0.0.20
+pydantic==2.11.7
+schedule==1.2.0
+pytz==2025.2
+requests==2.31.0
