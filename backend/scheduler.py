@@ -14,10 +14,8 @@ from background_checker import BackgroundChecker
 async def run_background_check():
     """Run the background check"""
     try:
-        print(f"Starting scheduled background check at {datetime.now(timezone.utc)}")
         checker = BackgroundChecker()
         await checker.check_all_subscriptions()
-        print(f"Completed scheduled background check at {datetime.now(timezone.utc)}")
     except Exception as e:
         print(f"Error during scheduled background check: {str(e)}")
 
@@ -31,9 +29,7 @@ def setup_scheduler():
     timezone_name = os.getenv('TIMEZONE', 'UTC')
     try:
         user_timezone = pytz.timezone(timezone_name)
-        print(f"Using timezone: {timezone_name}")
     except pytz.exceptions.UnknownTimeZoneError:
-        print(f"Unknown timezone: {timezone_name}. Falling back to UTC")
         user_timezone = pytz.UTC
         timezone_name = 'UTC'
     
@@ -44,9 +40,6 @@ def setup_scheduler():
     # Support multiple schedule times (comma-separated)
     times = [time.strip() for time in schedule_times.split(',')]
     
-    print(f"Environment variables: TIMEZONE={timezone_name}, SCHEDULE_TIME={schedule_time}")
-    print(f"Current time in {timezone_name}: {datetime.now(user_timezone)}")
-    print(f"Current UTC time: {datetime.now(pytz.UTC)}")
     
     scheduled_times = []
     for time_str in times:
@@ -58,7 +51,6 @@ def setup_scheduler():
                 # If timezone is UTC, use time directly
                 utc_time_str = time_str
                 schedule.every().day.at(utc_time_str).do(run_async_check)
-                print(f"Scheduled daily check at {time_str} UTC")
                 scheduled_times.append(f"{time_str} UTC")
             else:
                 # Convert local time to UTC for the scheduler
@@ -75,7 +67,6 @@ def setup_scheduler():
                 # Schedule using UTC time
                 schedule.every().day.at(utc_time_str).do(run_async_check)
                 
-                print(f"Scheduled daily check at {time_str} {timezone_name} (UTC: {utc_time_str})")
                 scheduled_times.append(f"{time_str} {timezone_name}")
             
         except ValueError:
@@ -87,12 +78,6 @@ def setup_scheduler():
             schedule.every().day.at("09:00").do(run_async_check)
             scheduled_times.append("09:00 UTC (fallback)")
     
-    print(f"Scheduler setup complete. Daily checks scheduled for: {', '.join(scheduled_times)}")
-    
-    # Show next run times for debugging
-    jobs = schedule.get_jobs()
-    for job in jobs:
-        print(f"Next run time: {job.next_run}")
     
     return True
 
@@ -100,38 +85,13 @@ def run_scheduler():
     """Run the scheduler continuously"""
     setup_scheduler()
     
-    print("Starting scheduler daemon...")
-    print("Press Ctrl+C to stop")
-    
-    last_log_time = None
-    
     try:
         while True:
-            # Log current time every 10 minutes for debugging
-            current_time = datetime.now(pytz.UTC)
-            if last_log_time is None or (current_time - last_log_time).total_seconds() >= 600:
-                print(f"Scheduler daemon running. Current UTC time: {current_time}")
-                
-                # Show next scheduled run times
-                jobs = schedule.get_jobs()
-                if jobs:
-                    next_job = min(jobs, key=lambda x: x.next_run)
-                    print(f"Next scheduled job: {next_job.next_run}")
-                
-                last_log_time = current_time
-            
-            # Check for pending jobs
-            pending_jobs = schedule.get_jobs()
-            pending_count = len([job for job in pending_jobs if job.should_run])
-            
-            if pending_count > 0:
-                print(f"Running {pending_count} pending job(s) at {current_time}")
-            
             schedule.run_pending()
             time.sleep(60)  # Check every minute
             
     except KeyboardInterrupt:
-        print("\nScheduler stopped by user")
+        pass
     except Exception as e:
         print(f"Scheduler error: {str(e)}")
 
@@ -145,7 +105,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.run_once:
-        print("Running background check once...")
         asyncio.run(run_background_check())
     else:
         run_scheduler()
