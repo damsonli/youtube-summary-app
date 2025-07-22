@@ -19,7 +19,10 @@ A containerized application that analyzes YouTube videos and channels using AI-p
 - **Transcript Indicators**: Visual indicators show when AI summaries use video transcripts
 
 ### 🛠️ Technical Features
-- **Remote AI Processing**: Uses Ollama running on a remote server for summaries
+- **Multiple LLM Services**: Support for Ollama (self-hosted) and OpenAI (cloud) 
+- **Flexible AI Processing**: Choose between local Ollama or cloud-based OpenAI
+- **Real-time Service Status**: Frontend displays which LLM service is active, connection status, and service details
+- **Service Status Indicators**: Visual icons (🏠 Ollama, ☁️ OpenAI) with color-coded connection status
 - **Fully Containerized**: Easy deployment with Docker
 - **Modern UI**: React frontend with Tailwind CSS
 - **FastAPI Backend**: High-performance async API
@@ -36,8 +39,16 @@ cp .env.template .env
 
 Edit `.env` with your settings:
 ```env
-# Ollama Server Configuration
+# LLM Service Configuration
+LLM_SERVICE=ollama  # Choose: ollama, openai
+
+# Ollama Configuration (if using ollama)
 OLLAMA_HOST=http://your-ollama-server:11434
+OLLAMA_MODEL=llama3.2
+
+# OpenAI Configuration (if using openai)
+# OPENAI_API_KEY=your-openai-api-key-here
+# OPENAI_MODEL=gpt-4o-mini
 
 # Email Configuration (optional, for subscriptions)
 SMTP_SERVER=smtp.gmail.com
@@ -139,6 +150,72 @@ SCHEDULE_TIMES=09:00,18:00
 - **Schedule times** are interpreted in your **local timezone**
 - **"Today's videos"** are calculated based on your **local date**
 - **Email timestamps** show your **local timezone**
+
+## LLM Service Configuration
+
+### Overview
+
+The application supports multiple LLM services for generating AI summaries. You can choose between self-hosted Ollama or cloud-based OpenAI.
+
+### Supported Services
+
+#### 🏠 Ollama (Self-Hosted)
+**Best for: Privacy, cost control, custom models**
+
+```env
+LLM_SERVICE=ollama
+OLLAMA_HOST=http://your-ollama-server:11434
+OLLAMA_MODEL=llama3.2
+```
+
+**Setup Requirements:**
+- Run Ollama server on local network or remote server
+- Install desired models (e.g., `ollama pull llama3.2`)
+- No API costs or usage limits
+
+#### ☁️ OpenAI (Cloud)
+**Best for: Ease of use, high quality, no infrastructure**
+
+```env
+LLM_SERVICE=openai
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+**Setup Requirements:**
+- OpenAI account with API access
+- Generate API key from OpenAI dashboard
+- Pay-per-use pricing
+
+### Error Handling
+
+The application includes comprehensive error handling:
+- **Invalid service name**: Clear error message with supported options
+- **Missing API key**: Specific error for OpenAI configuration
+- **Network issues**: Graceful fallback with basic video info
+- **Service unavailable**: Detailed error messages for troubleshooting
+
+### Adding Other Services
+
+The architecture supports easy addition of other LLM services. To add support for new services (e.g., Anthropic Claude, Google Gemini):
+
+1. Create a new client class implementing `BaseLLMClient`
+2. Add service detection in `LLMClient._initialize_client()`
+3. Update environment template and documentation
+4. Add required dependencies to `requirements.txt`
+
+**Example structure for new services:**
+```python
+class AnthropicClient(BaseLLMClient):
+    def __init__(self, api_key: str, model_name: str = "claude-3-haiku-20240307"):
+        # Implementation here
+    
+    async def generate_summary(self, video_info: Dict) -> str:
+        # Service-specific implementation
+    
+    async def check_connection(self) -> bool:
+        # Connection check implementation
+```
 
 ## Development
 

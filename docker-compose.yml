@@ -5,12 +5,19 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # LLM Service Configuration
+      - LLM_SERVICE=${LLM_SERVICE:-ollama}
       - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      # Email Configuration
       - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
       - FROM_EMAIL=${FROM_EMAIL}
+      # Scheduler Configuration
       - SCHEDULE_TIME=${SCHEDULE_TIME:-09:00}
       - SCHEDULE_TIMES=${SCHEDULE_TIMES}
       - TIMEZONE=${TIMEZONE:-UTC}

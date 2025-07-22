@@ -3,6 +3,7 @@ import VideoAnalyzer from './components/VideoAnalyzer'
 import VideoResults from './components/VideoResults'
 import ProgressDisplay from './components/ProgressDisplay'
 import SubscriptionManager from './components/SubscriptionManager'
+import LLMServiceStatus from './components/LLMServiceStatus'
 
 function App() {
   const [results, setResults] = useState([])
@@ -51,6 +52,8 @@ function App() {
         <div className="max-w-4xl mx-auto">
           {activeTab === 'analyze' && (
             <>
+              <LLMServiceStatus />
+              
               <VideoAnalyzer 
                 onResults={setResults}
                 onLoading={setLoading}

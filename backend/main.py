@@ -77,6 +77,36 @@ class SubscriptionResponse(BaseModel):
 async def root():
     return {"message": "YouTube Video Analyzer API"}
 
+@app.get("/llm-service")
+async def get_llm_service():
+    """Get current LLM service configuration"""
+    try:
+        service = os.getenv('LLM_SERVICE', 'ollama').lower()
+        config = {
+            "service": service,
+            "status": "unknown"
+        }
+        
+        # Add service-specific info
+        if service == 'ollama':
+            config["host"] = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+            config["model"] = os.getenv('OLLAMA_MODEL', 'llama3.2')
+        elif service == 'openai':
+            config["model"] = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+            config["has_api_key"] = bool(os.getenv('OPENAI_API_KEY'))
+        
+        # Test connection
+        try:
+            connection_ok = await llm_client.check_connection()
+            config["status"] = "connected" if connection_ok else "disconnected"
+        except Exception as e:
+            config["status"] = "error"
+            config["error"] = str(e)
+        
+        return config
+    except Exception as e:
+        return {"error": f"Failed to get LLM service info: {str(e)}"}
+
 @app.get("/test-stream")
 async def test_stream():
     """Test streaming endpoint"""
