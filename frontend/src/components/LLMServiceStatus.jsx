@@ -10,7 +10,7 @@ const LLMServiceStatus = () => {
 
   const fetchServiceInfo = async () => {
     try {
-      const response = await fetch('http://localhost:8000/llm-service')
+      const response = await fetch('/api/llm-service')
       const data = await response.json()
       setServiceInfo(data)
     } catch (error) {
