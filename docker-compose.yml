@@ -18,7 +18,7 @@ services:
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
       - FROM_EMAIL=${FROM_EMAIL}
       # Scheduler Configuration
-      - SCHEDULE_TIME=${SCHEDULE_TIME:-09:00}
+      - SCHEDULE_TIME=${SCHEDULE_TIME:-9:00}
       - SCHEDULE_TIMES=${SCHEDULE_TIMES}
       - TIMEZONE=${TIMEZONE:-UTC}
       - DATA_DIR=/app/data
