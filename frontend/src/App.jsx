@@ -1,82 +1,67 @@
-import { useState } from 'react'
-import VideoAnalyzer from './components/VideoAnalyzer'
-import VideoResults from './components/VideoResults'
-import ProgressDisplay from './components/ProgressDisplay'
-import SubscriptionManager from './components/SubscriptionManager'
-import LLMServiceStatus from './components/LLMServiceStatus'
+import { useEffect, useState } from 'react'
+import Read from './views/Read.jsx'
+import Library from './views/Library.jsx'
+import Channels from './views/Channels.jsx'
+import Settings from './views/Settings.jsx'
 
-function App() {
-  const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [progress, setProgress] = useState({ message: '', step: 0, total: 0, progress: 0 })
-  const [activeTab, setActiveTab] = useState('analyze')
+const ROUTES = [
+  { id: 'read', label: 'Read', View: Read },
+  { id: 'library', label: 'Library', View: Library },
+  { id: 'channels', label: 'Channels', View: Channels },
+  { id: 'settings', label: 'Settings', View: Settings },
+]
 
+// Older links (including ones in sent emails) keep working.
+const ALIASES = { subscriptions: 'channels', status: 'settings' }
+
+function currentRoute() {
+  const raw = window.location.hash.replace(/^#\/?/, '')
+  const id = ALIASES[raw] ?? raw
+  return ROUTES.find((r) => r.id === id) ?? ROUTES[0]
+}
+
+export default function App() {
+  const [route, setRoute] = useState(currentRoute)
+
+  useEffect(() => {
+    const onHash = () => {
+      setRoute(currentRoute())
+      window.scrollTo(0, 0)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  const { View } = route
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            YouTube Video Analyzer
-          </h1>
-          <p className="text-gray-600">
-            Get AI-powered summaries of YouTube videos and channels
-          </p>
-        </header>
-
-        {/* Tab Navigation */}
-        <div className="max-w-4xl mx-auto mb-8">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab('analyze')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'analyze'
-                  ? 'bg-white text-blue-600 shadow'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              Analyze Videos
-            </button>
-            <button
-              onClick={() => setActiveTab('subscriptions')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'subscriptions'
-                  ? 'bg-white text-blue-600 shadow'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              Subscriptions
-            </button>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto">
-          {activeTab === 'analyze' && (
-            <>
-              <LLMServiceStatus />
-              
-              <VideoAnalyzer 
-                onResults={setResults}
-                onLoading={setLoading}
-                onProgress={setProgress}
-              />
-              
-              {loading && (
-                <ProgressDisplay progress={progress} />
-              )}
-
-              {results.length > 0 && (
-                <VideoResults results={results} />
-              )}
-            </>
-          )}
-
-          {activeTab === 'subscriptions' && (
-            <SubscriptionManager />
-          )}
-        </div>
-      </div>
+    <div className="mx-auto max-w-5xl px-4 sm:px-8">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-3 border-b border-rule py-6">
+        <a href="#/read" className="font-serif text-[1.75rem] leading-none text-ink no-underline italic">
+          Digest
+        </a>
+        <nav aria-label="Main">
+          <ul className="flex flex-wrap gap-x-6 gap-y-1 text-[0.9375rem]">
+            {ROUTES.map((r) => (
+              <li key={r.id}>
+                <a
+                  href={`#/${r.id}`}
+                  aria-current={r.id === route.id ? 'page' : undefined}
+                  className={
+                    r.id === route.id
+                      ? 'marker font-semibold no-underline'
+                      : 'text-ink-soft no-underline hover:text-ink'
+                  }
+                >
+                  {r.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </header>
+      <main className="py-10 sm:py-14">
+        <View />
+      </main>
     </div>
   )
 }
-
-export default App

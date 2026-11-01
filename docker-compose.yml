@@ -1,40 +1,18 @@
 services:
-  backend:
-    build: ./backend
-    container_name: youtube-analyzer-backend
+  app:
+    build:
+      context: .
+      target: runtime
+    image: youtube-digest:2.0.0
+    container_name: youtube-digest
+    env_file:
+      - path: .env
+        required: false
     ports:
-      - "8000:8000"
-    environment:
-      # LLM Service Configuration
-      - LLM_SERVICE=${LLM_SERVICE:-ollama}
-      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-      # Email Configuration
-      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - FROM_EMAIL=${FROM_EMAIL}
-      # Scheduler Configuration
-      - SCHEDULE_TIME=${SCHEDULE_TIME:-9:00}
-      - SCHEDULE_TIMES=${SCHEDULE_TIMES}
-      - TIMEZONE=${TIMEZONE:-UTC}
-      - DATA_DIR=/app/data
+      - "${APP_PORT:-8090}:8000"
     volumes:
       - ./data:/app/data
+    extra_hosts:
+      # lets the container reach Ollama running on the host (Linux, macOS and Windows)
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    container_name: youtube-analyzer-frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-networks:
-  default:
-    driver: bridge

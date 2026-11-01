@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.dev)",
+      "Read(**/.env.paper)",
+      "Read(**/.env.live)",
+      "Read(**/.env.test)",
+      "Read(**/.env.local)",
+      "Read(**/.env.prod)",
+      "Edit(**/.env)",
+      "Edit(**/.env.dev)",
+      "Edit(**/.env.paper)",
+      "Edit(**/.env.live)",
+      "Edit(**/.env.test)",
+      "Edit(**/.env.local)",
+      "Edit(**/.env.prod)",
+      "Read(**/secrets/**)",
+      "Edit(**/secrets/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write|MultiEdit|NotebookEdit|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/block_env.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/block_host_tooling.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

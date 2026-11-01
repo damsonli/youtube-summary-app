@@ -4,6 +4,9 @@
 
 # Data files (subscriptions, user data)
 data/*.json
+data/*.db
+data/*.db-*
+data/*.imported
 
 # Dependencies
 node_modules/
@@ -30,9 +33,7 @@ Thumbs.db
 *.swp
 *.swo
 
-# Docker
-.dockerignore
 
-# Claude
-.claude
-CLAUDE.md
+# # Claude
+# .claude
+# CLAUDE.md
