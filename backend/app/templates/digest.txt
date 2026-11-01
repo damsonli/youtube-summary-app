@@ -1,0 +1,23 @@
+Your YouTube digest, {{ date_label }}
+{{ headline }}
+
+{% for ch in channels %}
+== {{ ch.name }} ==
+{{ ch.url }}
+{{ ch.note }}
+
+{% for v in ch.videos %}
+* {{ v.title }}
+  {{ v.published_date }} · {{ v.duration }}
+  {{ v.url }}
+{% if v.summary %}
+
+{{ v.summary | indent(2, true) }}
+{% elif v.summary_error %}
+  (No AI summary: {{ v.summary_error }})
+{% endif %}
+
+{% endfor %}
+{% endfor %}
+--
+Manage your channels: {{ app_url }}/#/channels

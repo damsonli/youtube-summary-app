@@ -1,0 +1,39 @@
+[project]
+name = "youtube-digest"
+version = "2.0.0"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.162.0",
+    "uvicorn[standard]==0.54.0",
+    "yt-dlp[default]==2026.10.26",
+    "ollama==0.6.3",
+    "openai==3.42.0",
+    "anthropic==2.3.0",
+    "apscheduler==3.11.3",
+    "pydantic-settings==2.16.2",
+    "httpx==0.28.1",
+    "jinja2==3.1.6",
+    "markdown==3.11.2",
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0", "pytest-asyncio==1.4.1", "ruff==0.17.3"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+# EXE002: files on a Windows mount always look executable. BLE001: broad catches are deliberate (best-effort steps).
+ignore = ["EXE002", "BLE001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["RUF059"]
