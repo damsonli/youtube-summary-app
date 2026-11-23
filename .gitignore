@@ -7,6 +7,11 @@ data/*.json
 data/*.db
 data/*.db-*
 data/*.imported
+data/downloads/
+# YouTube sign-in cookies are credentials
+cookies*.txt
+data/.firefox-cookies/
+data/.no-firefox/
 
 # Dependencies
 node_modules/

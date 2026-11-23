@@ -13,6 +13,8 @@ FROM python:3.14.10-slim-trixie AS base
 COPY --from=astral/uv:0.13.6 /uv /usr/local/bin/uv
 # yt-dlp needs a JavaScript runtime to extract YouTube data
 COPY --from=denoland/deno:bin-2.9.8 /deno /usr/local/bin/deno
+# static ffmpeg + ffprobe: merges 1080p+ video/audio, MP3 extraction, subtitle conversion
+COPY --from=mwader/static-ffmpeg:9.1 /ffmpeg /ffprobe /usr/local/bin/
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH"

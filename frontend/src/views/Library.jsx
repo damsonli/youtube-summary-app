@@ -39,7 +39,7 @@ export default function Library() {
       {items === null && !error && <p className="pulse mt-10 text-ink-soft">Loading…</p>}
       {items?.length === 0 && (
         <p className="mt-10 text-ink-soft">
-          Nothing here yet. <a href="#/read">Summarize a video</a> and it will be kept here.
+          Nothing here yet. <a href="#/summarize">Summarize a video</a> and it will be kept here.
         </p>
       )}
       <div className="mt-10 space-y-14">

@@ -1,5 +1,6 @@
 """FastAPI app: JSON/SSE API under /api, the built SPA everywhere else, scheduler in-process."""
 
+import asyncio
 import json
 import logging
 import re
@@ -15,11 +16,21 @@ from pydantic import BaseModel, Field, field_validator
 
 from . import runtime
 from .config import EDITABLE, get_settings
+from .cookies import cookie_opts
 from .db import Database
+from .download_api import router as download_router
+from .downloader import DownloadManager
 from .llm import LLMError, NotConfigured, Registry, build_provider, check_status
 from .mailer import EmailError, Mailer
 from .notifier import AlreadyRunning, Notifier
-from .youtube import YouTubeClient, YouTubeError, is_channel_url, normalize_channel_url
+from .youtube import (
+    YouTubeClient,
+    YouTubeError,
+    ffmpeg_path,
+    is_channel_url,
+    normalize_channel_url,
+    ydl_base_opts,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("app")
@@ -33,14 +44,30 @@ async def lifespan(app: FastAPI):
     db.import_legacy_json(env.data_dir / "subscriptions.json")
     db.fail_stale_runs()
     s = runtime.load(db)  # environment + values saved from the Settings page
-    yt = YouTubeClient(s.transcript_max_chars)
+    # Read the live settings on every call: cookies can be added or removed while running.
+    yt = YouTubeClient(s.transcript_max_chars, extra_opts=lambda: ydl_base_opts(app.state.settings))
     notifier = Notifier(s, db, yt, Registry(s), Mailer(s))
     app.state.__dict__.update(db=db, yt=yt, notifier=notifier, scheduler=AsyncIOScheduler())
     runtime.apply(app.state, s)
-    log.info("LLM default: %s; email %s", s.llm_service, "configured" if s.email_configured else "NOT configured")
+    app.state.downloads = DownloadManager(lambda: app.state.settings)
+    sweeper = asyncio.create_task(_sweep_forever(app.state.downloads))
+    log.info("LLM default: %s; email %s; ffmpeg %s; cookies %s", s.llm_service,
+             "configured" if s.email_configured else "NOT configured",
+             ffmpeg_path() or "NOT found", cookie_opts(s)[1] or "none")
     yield
+    sweeper.cancel()
     if app.state.scheduler.running:
         app.state.scheduler.shutdown(wait=False)
+
+
+async def _sweep_forever(downloads: DownloadManager) -> None:
+    """Remove temporary download files older than an hour (at startup, then every 10 minutes)."""
+    while True:
+        try:
+            downloads.sweep()
+        except Exception:
+            log.exception("download sweep failed")
+        await asyncio.sleep(600)
 
 
 app = FastAPI(title="YouTube Digest", version="2.0.0", lifespan=lifespan)
@@ -98,6 +125,8 @@ async def status(request: Request):
         "check_running": st.notifier.running,
         "default_provider": s.llm_service,
         "max_ai_summaries_per_channel": s.max_ai_summaries_per_channel,
+        "ffmpeg": bool(ffmpeg_path()),
+        "cookies": cookie_opts(s)[1],
     }
 
 
@@ -287,6 +316,7 @@ async def test_email(body: TestEmail, request: Request):
 
 
 app.include_router(api)
+app.include_router(download_router)
 
 
 # ---- SPA -------------------------------------------------------------------

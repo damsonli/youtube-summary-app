@@ -18,7 +18,7 @@ EDITABLE = frozenset({
     "openai_base_url", "openai_model", "anthropic_base_url", "claude_model", "claude_effort",
     "transcript_max_chars", "max_ai_summaries_per_channel",
     "smtp_server", "smtp_port", "smtp_security", "email_user", "from_email", "app_url",
-    "timezone", "schedule_times",
+    "timezone", "schedule_times", "cookies_source",
 })
 # Never editable from the UI and never returned by the API; only whether they are set.
 SECRETS = ("openai_api_key", "anthropic_api_key", "email_password")
@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     transcript_max_chars: int = Field(default=20000, ge=1000, le=200_000)
     channel_scan_limit: int = 30  # flat entries scanned per subscription check
     max_ai_summaries_per_channel: int = Field(default=3, ge=0, le=10)
+    # Netscape cookies.txt for members-only / age-gated videos. Default: $DATA_DIR/cookies.txt
+    cookies_file: Path | None = None
+    # Where sign-in cookies come from: "upload" (the cookies.txt above) or "firefox" (read live from the
+    # Firefox folder mounted at firefox_mount; falls back to cookies.txt when no profile is found there).
+    cookies_source: Literal["upload", "firefox"] = "upload"
+    firefox_mount: Path = Path("/firefox")  # path inside the container; FIREFOX_PROFILES picks the host folder
+
+    # Downloader
+    max_concurrent_downloads: int = Field(default=2, ge=1, le=8)
 
     # Email
     smtp_server: str = "smtp.gmail.com"
@@ -69,7 +78,8 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     static_dir: Path = Path("static")
 
-    @field_validator("openai_base_url", "anthropic_base_url", "email_user", "from_email", mode="before")
+    @field_validator("openai_base_url", "anthropic_base_url", "email_user", "from_email", "cookies_file",
+                     mode="before")
     @classmethod
     def _blank_is_none(cls, v):
         if isinstance(v, str):
@@ -123,6 +133,20 @@ class Settings(BaseSettings):
     @property
     def db_path(self) -> Path:
         return self.data_dir / "app.db"
+
+    @property
+    def cookie_path(self) -> Path:
+        return self.cookies_file or self.data_dir / "cookies.txt"
+
+    @property
+    def firefox_snapshot_dir(self) -> Path:
+        """Private copy of Firefox's cookie database; yt-dlp reads this, never the live file."""
+        return self.data_dir / ".firefox-cookies"
+
+    @property
+    def downloads_dir(self) -> Path:
+        """Downloads kept on the server. Temporary files live in its .tmp subfolder."""
+        return self.data_dir / "downloads"
 
 
 def parse_times(raw: str) -> list[time]:

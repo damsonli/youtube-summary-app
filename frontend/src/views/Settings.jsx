@@ -167,6 +167,302 @@ function timezones(current) {
   return [...new Set(['UTC', current, ...zones])].filter(Boolean)
 }
 
+const FIREFOX_LINE = 'FIREFOX_PROFILES=/mnt/c/Users/<you>/AppData/Roaming/Mozilla/Firefox/Profiles'
+
+const COOKIE_SOURCES = [
+  {
+    value: 'firefox',
+    title: 'Read from Firefox automatically',
+    summary: 'Nothing to export, and it never goes stale: the app reads your Firefox cookies fresh for each video.',
+    fits: 'Choose this if you use Firefox on this computer. One-time setup: one line in .env and a restart.',
+  },
+  {
+    value: 'upload',
+    title: 'Upload a cookies.txt',
+    summary: 'Works with any browser, including Chrome and Edge. You export a file with a browser extension and upload it here.',
+    fits: 'Choose this if you don’t use Firefox. Export a new file when YouTube signs it out (every few weeks).',
+  },
+]
+
+/** One numbered setup step; turns into a check mark when `done`. */
+function Step({ n, done, title, children }) {
+  return (
+    <li className="flex gap-3">
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${done ? 'bg-[var(--ok)] text-white' : 'bg-raised text-ink-soft'}`}
+      >
+        {done ? '✓' : n}
+      </span>
+      <div className="min-w-0 flex-1 space-y-1.5 text-sm leading-relaxed">
+        <p className="font-semibold">{title}{done && <span className="sr-only"> (done)</span>}</p>
+        {children}
+      </div>
+    </li>
+  )
+}
+
+function CopyLine({ text }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }, () => {})
+  }
+  return (
+    <span className="flex items-stretch gap-2">
+      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-md bg-raised px-3 py-2 font-mono text-xs">{text}</code>
+      <button type="button" className="btn btn-quiet shrink-0 px-3 py-1 text-xs" onClick={copy}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </span>
+  )
+}
+
+function cookieSummary(state) {
+  const ff = state.firefox
+  if (state.active === 'firefox') {
+    return ff.signed_in === false
+      ? { tone: 'text-danger', text: `Reading Firefox (profile ${ff.profile}), but it isn’t signed in to YouTube. Sign in to YouTube in Firefox.` }
+      : { tone: 'text-ok', text: `Signed in: reading your cookies from Firefox (profile ${ff.profile}).` }
+  }
+  if (state.active === 'upload') {
+    const updated = state.upload.updated_at ? ` (updated ${when(state.upload.updated_at)})` : ''
+    const fallback = state.source === 'firefox' ? ' Firefox isn’t set up yet, so the uploaded file is used meanwhile.' : ''
+    return { tone: 'text-ok', text: `Signed in with your uploaded cookies.txt${updated}.${fallback}` }
+  }
+  return { tone: 'text-ink-soft', text: 'Not signed in: the app watches YouTube as a signed-out viewer. Pick a way below.' }
+}
+
+/** Take the Firefox sign-in to an instance on another machine, which can't see this Firefox. */
+function ExportCookies({ busy, onNote }) {
+  const [working, setWorking] = useState(false)
+
+  async function download() {
+    setWorking(true)
+    onNote(null)
+    try {
+      await api.exportCookies()
+      onNote({ text: 'Downloaded cookies.txt. Upload it on the other server, then delete your copy.' })
+    } catch (e) {
+      onNote({ error: true, text: e.message })
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-rule p-4 sm:p-5">
+      <h3 className="font-semibold">Use this sign-in on another server</h3>
+      <p className="text-sm leading-relaxed text-ink-soft">
+        If the app also runs on a server that can’t see this Firefox, download your YouTube cookies here as a cookies.txt,
+        then on that server open Settings → YouTube sign-in, choose <em>Upload a cookies.txt</em> and upload it.
+      </p>
+      <button type="button" className="btn btn-quiet" disabled={busy || working} onClick={download}>
+        {working ? 'Preparing…' : 'Download cookies.txt'}
+      </button>
+      <p className="text-sm leading-relaxed text-ink-faint">
+        Treat the file like a password: it signs in as you. Only youtube.com cookies are included, not your other Google ones.
+        Unlike reading Firefox live, the copy on the server goes stale when YouTube rotates it (every few weeks); download and upload a fresh one then.
+      </p>
+    </div>
+  )
+}
+
+function FirefoxSetup({ state, busy, onRefresh }) {
+  const ff = state.firefox
+  return (
+    <div className="space-y-4">
+      <ol className="space-y-4">
+        <Step n={1} done={ff.signed_in} title="Sign in to YouTube in Firefox">
+          <p className="text-ink-soft">On this computer, open youtube.com in Firefox and sign in with the account that has the membership. Firefox can stay open; the app reads a copy of its cookies.</p>
+        </Step>
+        <Step n={2} done={ff.mounted} title="Tell Docker where Firefox keeps its profiles">
+          <p className="text-ink-soft">Add this line to the <code>.env</code> file next to <code>docker-compose.yml</code>, with your Windows user name in place of <code>&lt;you&gt;</code>:</p>
+          <CopyLine text={FIREFOX_LINE} />
+          <p className="text-ink-faint">
+            Not sure of the folder? In Firefox, open <code>about:support</code>, find <em>Profile Folder</em> and click <em>Open Folder</em>; use the folder above it, named <em>Profiles</em>.
+            If you run Docker from Windows rather than WSL, write it as <code>C:/Users/&lt;you&gt;/AppData/Roaming/Mozilla/Firefox/Profiles</code>.
+            The app gets read-only access.
+          </p>
+        </Step>
+        <Step n={3} done={ff.found} title="Restart the app">
+          <p className="text-ink-soft">In the project folder, run:</p>
+          <CopyLine text="docker compose up -d" />
+          <p className="text-ink-faint">
+            {ff.found
+              ? `Found Firefox profile “${ff.profile}”${ff.updated_at ? `, last used ${when(ff.updated_at)}` : ''}.`
+              : ff.mounted
+                ? 'The folder is shared, but there is no Firefox profile in it. Check that it is the Profiles folder.'
+                : 'No Firefox folder is shared with the app yet.'}
+          </p>
+          {ff.error && <p className="text-danger">{ff.error}</p>}
+        </Step>
+      </ol>
+      <button type="button" className="btn btn-quiet" disabled={busy} onClick={onRefresh}>Check again</button>
+      <p className="text-sm leading-relaxed text-ink-faint">
+        Only Firefox works this way: Chrome and Edge on Windows lock their cookies with encryption.
+        The app uses whichever account is signed in to YouTube in Firefox. If Firefox can’t be read, an uploaded cookies.txt is used instead.
+      </p>
+    </div>
+  )
+}
+
+function UploadSetup({ state, busy, act, onNote }) {
+  const [text, setText] = useState('')
+
+  function pickFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) file.text().then(setText, () => onNote({ error: true, text: 'Could not read that file' }))
+  }
+
+  async function save() {
+    if (await act(() => api.saveCookies(text), 'Saved. It is used from the next request on.')) setText('')
+  }
+
+  return (
+    <div className="space-y-4">
+      <ol className="space-y-4">
+        <Step n={1} title="Install a cookie exporter">
+          <p className="text-ink-soft">In the browser where you’re signed in to YouTube (with the membership), install an extension such as “Get cookies.txt LOCALLY” or Cookie-Editor.</p>
+          <p className="text-ink-faint">Tip: export from a private window signed in only to YouTube to keep it apart from your everyday Google login.</p>
+        </Step>
+        <Step n={2} title="Export the youtube.com cookies">
+          <p className="text-ink-soft">On youtube.com, export the cookies in <strong>Netscape / cookies.txt</strong> format.</p>
+        </Step>
+        <Step n={3} done={state.upload.present} title="Upload or paste the file here">
+          <Field label="cookies.txt" help="Treat this like a password: it signs in as you. It is stored in data/ and never shown again.">
+            <textarea
+              className="field h-28 font-mono text-xs"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="# Netscape HTTP Cookie File"
+              spellCheck="false"
+              autoComplete="off"
+            />
+          </Field>
+          <div className="flex flex-wrap items-center gap-4 pt-1">
+            <label className="btn btn-quiet cursor-pointer">
+              Choose file…
+              <input type="file" accept=".txt,text/plain" className="sr-only" onChange={pickFile} />
+            </label>
+            <button type="button" className="btn" disabled={busy || !text.trim()} onClick={save}>
+              Save cookies
+            </button>
+            {state.upload.present && (
+              <button type="button" className="btn-text text-sm underline" disabled={busy} onClick={() => act(api.deleteCookies, 'Removed.')}>
+                Remove cookies
+              </button>
+            )}
+          </div>
+        </Step>
+      </ol>
+      <p className="text-sm leading-relaxed text-ink-faint">YouTube rotates cookies. If members-only videos start failing again, export and upload a fresh file.</p>
+    </div>
+  )
+}
+
+/** YouTube sign-in: read cookies from Firefox, or paste / upload a cookies.txt. Cookie values are never sent back. */
+function CookiesForm({ ffmpeg, onChange }) {
+  const [state, setState] = useState(null)
+  const [note, setNote] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api.cookies().then(setState, (e) => setNote({ error: true, text: e.message }))
+  }, [])
+
+  async function act(fn, ok) {
+    setBusy(true)
+    setNote(null)
+    try {
+      setState(await fn())
+      if (ok) setNote({ text: ok })
+      onChange?.()
+      return true
+    } catch (e) {
+      setNote({ error: true, text: e.message })
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const choose = (source) => act(async () => {
+    await api.saveSettings({ cookies_source: source })
+    return api.cookies()
+  })
+
+  if (state === null) {
+    return note ? <Notice note={note} /> : <p className="pulse text-sm text-ink-soft">Checking…</p>
+  }
+  const summary = cookieSummary(state)
+  const firefox = state.source === 'firefox'
+  return (
+    <div className="space-y-6">
+      <p className={`text-sm ${summary.tone}`} role="status">{summary.text}</p>
+
+      <fieldset>
+        <legend className="text-sm font-semibold">How should the app get your YouTube cookies?</legend>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          {COOKIE_SOURCES.map((o) => {
+            const on = state.source === o.value
+            return (
+              <label
+                key={o.value}
+                className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${on ? 'border-ink bg-raised' : 'border-rule hover:bg-raised'}`}
+              >
+                <input
+                  type="radio"
+                  name="cookies_source"
+                  value={o.value}
+                  checked={on}
+                  disabled={busy}
+                  onChange={() => choose(o.value)}
+                  className="mt-1 accent-[var(--ink)]"
+                />
+                <span className="space-y-1.5">
+                  <span className="block font-semibold">{o.title}</span>
+                  <span className="block text-sm leading-relaxed text-ink-soft">{o.summary}</span>
+                  <span className="block text-sm leading-relaxed text-ink-faint">{o.fits}</span>
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      </fieldset>
+
+      <div className="rounded-xl border border-rule p-4 sm:p-5">
+        <h3 className="mb-4 font-semibold">{firefox ? 'Set up: read from Firefox' : 'Set up: upload a cookies.txt'}</h3>
+        {firefox
+          ? <FirefoxSetup state={state} busy={busy} onRefresh={() => act(api.cookies)} />
+          : <UploadSetup state={state} busy={busy} act={act} onNote={setNote} />}
+      </div>
+
+      {firefox && state.firefox.signed_in && <ExportCookies busy={busy} onNote={setNote} />}
+
+      {firefox && (
+        <details className="rounded-xl border border-rule p-4 sm:p-5">
+          <summary className="cursor-pointer font-semibold">
+            Fallback: upload a cookies.txt{state.upload.present ? ' (one is saved)' : ''}
+          </summary>
+          <p className="mt-2 text-sm text-ink-faint">Used only while Firefox can’t be read.</p>
+          <div className="mt-4">
+            <UploadSetup state={state} busy={busy} act={act} onNote={setNote} />
+          </div>
+        </details>
+      )}
+
+      <Notice note={note} />
+      {ffmpeg === false && (
+        <p className="text-sm text-danger">ffmpeg was not found, so downloads above 720p, MP3 and .srt conversion are unavailable.</p>
+      )}
+    </div>
+  )
+}
+
 export default function Settings() {
   const [settings, setSettings] = useState(null)
   const [llm, setLlm] = useState(null)
@@ -253,7 +549,7 @@ export default function Settings() {
         <Section
           id="ai"
           title="AI summaries"
-          intro="Used for summaries on the Read page and in the daily email. You can still pick another one for a single summary on the Read page."
+          intro="Used for summaries on the Summarize page and in the daily email. You can still pick another one for a single summary on the Summarize page."
         >
           <SettingsForm key={formKey(AI_KEYS)} settings={settings} keys={AI_KEYS} onSaved={onSaved('ai')} saved={savedSection === 'ai'}>
             {({ draft, set, meta }) => (
@@ -426,6 +722,14 @@ export default function Settings() {
             </Field>
             <div className="mt-2"><Notice note={mailNote} /></div>
           </form>
+        </Section>
+
+        <Section
+          id="signin"
+          title="YouTube sign-in"
+          intro="Your YouTube cookies let the app open members-only, age-gated and private videos you can watch: for downloads, and for transcripts in summaries and emails."
+        >
+          <CookiesForm ffmpeg={status?.ffmpeg} onChange={refreshActivity} />
         </Section>
 
         <Section id="activity" title="Activity" intro="Every check, with what it found and sent. Open one to see its log.">
