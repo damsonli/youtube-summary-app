@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, isChannelUrl, storage, streamAnalyze } from '../api.js'
 import Article from '../components/Article.jsx'
+import { toolLink } from '../format.js'
 
 const PROVIDER_NAMES = { ollama: 'Ollama (local)', openai: 'OpenAI', claude: 'Claude' }
 
-export default function Read() {
-  const [url, setUrl] = useState('')
+export default function Read({ params = {} }) {
+  const [url, setUrl] = useState(params.url ?? '')
   const [limit, setLimit] = useState(5)
   const [providers, setProviders] = useState([])
   const [provider, setProvider] = useState(storage.get('provider'))
@@ -108,6 +109,12 @@ export default function Read() {
             </label>
           )}
         </div>
+        {/^https?:\/\/\S+\.\S+/.test(url.trim()) && (
+          <p className="mt-3 text-sm text-ink-soft">
+            Or <a href={toolLink('download', url.trim())}>download it</a>
+            {channel && <> · <a href={toolLink('channels', url.trim())}>follow this channel by email</a></>}
+          </p>
+        )}
         {providers.length > 0 && !usable.length && (
           <p className="mt-4 text-danger">
             No AI provider is set up yet. <a href="#/settings">Set one up in Settings</a>.
@@ -120,7 +127,7 @@ export default function Read() {
           <div className="text-sm text-ink-soft">
             <p className="pulse">{progress.message}</p>
             <div className="mt-2 h-[3px] w-full overflow-hidden rounded bg-rule" aria-hidden="true">
-              <div className="h-full bg-ink transition-[width] duration-500" style={{ width: `${pct}%` }} />
+              <div className="h-full bg-accent transition-[width] duration-500" style={{ width: `${pct}%` }} />
             </div>
           </div>
         )}

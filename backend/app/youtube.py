@@ -4,11 +4,16 @@ import asyncio
 import json
 import logging
 import re
+import shutil
+from collections.abc import Callable
 from datetime import UTC, datetime, tzinfo
 from urllib.parse import parse_qs, urlparse
 
 import httpx
 import yt_dlp
+
+from .config import Settings
+from .cookies import cookie_opts
 
 log = logging.getLogger(__name__)
 
@@ -73,21 +78,33 @@ def _published(info: dict) -> datetime | None:
     return None
 
 
+def ffmpeg_path() -> str | None:
+    return shutil.which("ffmpeg")
+
+
+def ydl_base_opts(s: Settings) -> dict:
+    """Options shared by every yt-dlp call: sign-in cookies (Firefox or cookies.txt) and ffmpeg."""
+    opts, _ = cookie_opts(s)
+    if ff := ffmpeg_path():
+        opts["ffmpeg_location"] = ff
+    return opts
+
+
 class YouTubeClient:
-    def __init__(self, transcript_max_chars: int = 20000):
+    def __init__(self, transcript_max_chars: int = 20000, extra_opts: Callable[[], dict] | None = None):
         self.transcript_max_chars = transcript_max_chars
+        self.extra_opts = extra_opts or dict
 
     # ---- extraction ----------------------------------------------------
-    @staticmethod
-    def _extract(url: str, **opts) -> dict:
-        with yt_dlp.YoutubeDL({**_BASE_OPTS, **opts}) as ydl:
+    def _extract(self, url: str, **opts) -> dict:
+        with yt_dlp.YoutubeDL({**_BASE_OPTS, **self.extra_opts(), **opts}) as ydl:
             return ydl.extract_info(url, download=False)
 
     async def get_video(self, url: str, tz: tzinfo = UTC, *, with_transcript: bool = True) -> dict:
         try:
             info = await asyncio.to_thread(self._extract, url)
         except yt_dlp.utils.DownloadError as e:
-            raise YouTubeError(_clean_ytdlp_error(e)) from e
+            raise YouTubeError(clean_ytdlp_error(e)) from e
         if info.get("_type") == "playlist":
             raise YouTubeError("That URL is a playlist or channel, not a single video")
         transcript = await self._transcript(info) if with_transcript else ""
@@ -115,7 +132,7 @@ class YouTubeClient:
             info = await asyncio.to_thread(self._extract, url, extract_flat="in_playlist",
                                            playlistend=limit, noplaylist=False)
         except yt_dlp.utils.DownloadError as e:
-            raise YouTubeError(_clean_ytdlp_error(e)) from e
+            raise YouTubeError(clean_ytdlp_error(e)) from e
         entries = []
         for e in info.get("entries") or []:
             vid = (e or {}).get("id")
@@ -199,6 +216,6 @@ def parse_captions(content: str, ext: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _clean_ytdlp_error(e: Exception) -> str:
+def clean_ytdlp_error(e: Exception | str) -> str:
     msg = re.sub(r"\x1b\[[0-9;]*m", "", str(e))
     return msg.removeprefix("ERROR: ").strip()

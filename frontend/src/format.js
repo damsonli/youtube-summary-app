@@ -32,3 +32,27 @@ export function when(iso) {
 export function prettyZone(tz) {
   return tz ? tz.replaceAll('_', ' ') : ''
 }
+
+/** Link to another tool with a video/channel URL prefilled, e.g. toolLink('download', url). */
+export const toolLink = (tool, url) => `#/${tool}?url=${encodeURIComponent(url)}`
+
+/** Seconds -> "1:02:03" / "4:05". */
+export function duration(s) {
+  if (s === null || s === undefined) return ''
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = Math.round(s % 60)
+  return (h ? `${h}:` : '') + String(m).padStart(h ? 2 : 1, '0') + ':' + String(sec).padStart(2, '0')
+}
+
+/** Bytes -> "12.3 MB". Empty for 0 / unknown. */
+export function bytes(n) {
+  if (!n) return ''
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let i = 0
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024
+    i++
+  }
+  return `${n >= 10 || i === 0 ? Math.round(n) : n.toFixed(1)} ${units[i]}`
+}

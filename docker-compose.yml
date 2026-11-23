@@ -12,6 +12,9 @@ services:
       - "${APP_PORT:-8090}:8000"
     volumes:
       - ./data:/app/data
+      # Optional, read-only: your Firefox profiles folder, for Settings > YouTube sign-in > "Read from Firefox".
+      # Set FIREFOX_PROFILES in .env; without it an empty placeholder folder is mounted.
+      - ${FIREFOX_PROFILES:-./data/.no-firefox}:/firefox:ro
     extra_hosts:
       # lets the container reach Ollama running on the host (Linux, macOS and Windows)
       - "host.docker.internal:host-gateway"

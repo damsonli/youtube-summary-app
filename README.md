@@ -1,15 +1,18 @@
-# YouTube Digest
+# Tube Desk (YouTube Digest)
 
-Summarize YouTube videos and channels with AI, and get a daily email of new uploads from the channels you follow.
+A personal YouTube toolkit: summarize videos and channels with AI, download videos, audio and subtitles, and get a daily email of new uploads from the channels you follow.
 
-- **Read**: paste a video or channel link and get a structured summary, built from the transcript when one exists.
+- **Summarize**: paste a video or channel link and get a structured summary, built from the transcript when one exists.
+- **Download**: paste a video, playlist or channel link, pick the resolution and codec (or audio only: M4A, Opus, MP3), optionally subtitles as `.srt`, and see the exact size before you start. Files go to your browser; tick "Also keep a copy on the server" to keep them in `data/downloads/` as well.
 - **Library**: every summary you make is kept.
 - **Channels**: enter your email, then follow channels; new uploads arrive in one email per check, with AI summaries for the newest few.
-- **Settings**: AI provider (with connection tests), check times and time zone, email contents, mail server, a test email, and the log of every check.
+- **Settings**: AI provider (with connection tests), check times and time zone, email contents, mail server, a test email, YouTube sign-in cookies, and the log of every check.
 
-AI providers: **Ollama** (local), **OpenAI or any OpenAI-compatible server** (LM Studio, vLLM, OpenRouter, LiteLLM…), or **Claude or any Anthropic-compatible gateway**. Pick the default in Settings (or `.env`); you can switch per summary on the Read page.
+The pages link to each other: a summary has a "Download video" link, the Download page has "Summarize this video", and a channel link can be followed by email from either page.
 
-Everything runs in **one container**: FastAPI serves the API (`/api/*`) and the built React app, and the daily scheduler runs in the same process. Data lives in SQLite at `./data/app.db`.
+AI providers: **Ollama** (local), **OpenAI or any OpenAI-compatible server** (LM Studio, vLLM, OpenRouter, LiteLLM…), or **Claude or any Anthropic-compatible gateway**. Pick the default in Settings (or `.env`); you can switch per summary on the Summarize page.
+
+Everything runs in **one container**: FastAPI serves the API (`/api/*`) and the built React app, and the daily scheduler runs in the same process. Data lives in SQLite at `./data/app.db`. The image includes yt-dlp, deno (which yt-dlp needs for YouTube) and a static ffmpeg.
 
 ## Quick start
 
@@ -59,6 +62,36 @@ Set a **base URL** (in Settings, or `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` in 
 
 Local servers usually need no API key; the app sends a placeholder when a base URL is set and no key is. "Test connection" on the Settings page checks the server and model before you save. Servers that can't list their models show as connected with a note that the model name wasn't checked.
 
+## Downloads
+
+- Pick resolution and codec separately (e.g. `720p` + `H.264 · MP4`). The server builds the yt-dlp format string from an allowlist; no raw format strings are accepted.
+- The size next to the pickers starts as an estimate, then changes to the exact size of the streams yt-dlp will fetch.
+- Playlists and channels: pick any subset. Videos download one after another, and the browser saves each one as it finishes. At most `MAX_CONCURRENT_DOWNLOADS` (default 2) downloads run at once on the server.
+- Temporary files are deleted once your browser has them, and anything left after an hour is swept. Files kept on the server stay in `data/downloads/` until you delete them on the Download page.
+- **Legal:** use this for content you're allowed to copy (your own videos, Creative Commons, etc.). Downloading may break YouTube's Terms of Service or copyright law where you live.
+
+### Members-only, age-gated and private videos
+
+By default the app talks to YouTube as a signed-out viewer. To use videos your account can watch, give it your YouTube cookies. **Settings → YouTube sign-in** offers two ways, with step-by-step instructions and live checks. Either way the cookies are used by downloads **and** by transcripts for summaries and emails.
+
+**Read from Firefox automatically** (if you use Firefox on this computer). Nothing to export, and it doesn't go stale:
+
+1. Sign in to YouTube in Firefox.
+2. In `.env`, point `FIREFOX_PROFILES` at your Firefox `Profiles` folder, e.g. `/mnt/c/Users/<you>/AppData/Roaming/Mozilla/Firefox/Profiles` on WSL (find it via `about:support` → *Profile Folder*; use the folder above it). Run `docker compose up -d`. The folder is mounted read-only at `/firefox`.
+3. On Settings → YouTube sign-in, choose **Read from Firefox automatically**.
+
+The app copies the newest profile's `cookies.sqlite` (with its write-ahead log, so cookies from the last few minutes are included) into `data/.firefox-cookies/` whenever Firefox changes it, and yt-dlp reads that copy. Firefox can stay open. It uses whichever account is signed in to YouTube in Firefox. Chrome and Edge on Windows encrypt their cookies with a key only the browser can use, so they can't be read this way. If no Firefox profile is found, an uploaded cookies.txt is used instead.
+
+**Running the app on a remote server?** It can't see your Firefox, so keep a local copy running with the Firefox source and, once it shows you as signed in, click **Download cookies.txt** under *Use this sign-in on another server*. Upload that file on the remote server's Settings → **Upload a cookies.txt**. The file holds only youtube.com cookies, not your other Google ones (Gmail, Drive). Treat it like a password, and download a fresh one when the remote copy goes stale.
+
+**Upload a cookies.txt** (any browser):
+
+1. In the browser where you're signed in (with the membership), install a cookie exporter such as "Get cookies.txt LOCALLY" or Cookie-Editor. Exporting from a private window keeps it apart from your everyday Google login.
+2. On youtube.com, export the cookies in **Netscape / cookies.txt** format.
+3. Upload or paste the file on **Settings → YouTube sign-in**. It's saved as `data/cookies.txt` (or wherever `COOKIES_FILE` points) with owner-only permissions and used from the next request on.
+
+With an uploaded file, YouTube rotates cookies; if members-only videos start failing again, export a fresh one. Cookies are credentials: they are git-ignored, the API never returns them, and you can remove an uploaded file from Settings. Members-only live streams and premieres aren't supported.
+
 ## How the daily email works
 
 1. At each scheduled time, every subscription's Videos tab is listed (newest first).
@@ -104,6 +137,14 @@ cd frontend && npm ci && npm run dev
 | POST | `/api/check` | start a check now (409 if one is running) |
 | GET | `/api/runs` | recent checks with logs |
 | POST | `/api/email/test` | `{to}`: send a sample digest |
+| GET | `/api/download/info?url=` | formats, sizes and subtitles for a video; entry list for a playlist/channel |
+| GET | `/api/download/size?url=&kind=&height=&codec=&mode=` | exact size of the selection |
+| POST | `/api/download` | `{url, sel: {kind, height, codec, mode}, subs?, title?, keep?}`: start a download job |
+| GET | `/api/download/jobs/{id}` | job progress and, when done, its file links |
+| GET | `/api/download/jobs/{id}/files/{i}` | the file as an attachment (temp files are deleted after sending) |
+| GET/DELETE | `/api/files[/{name}]` | downloads kept on the server |
+| GET/PUT/DELETE | `/api/cookies` | Sign-in status for both sources (Firefox, upload) and which is in use / `{content}` to save a cookies.txt / remove it (cookie values are never returned) |
+| POST | `/api/cookies/export` | Firefox's youtube.com cookies as a `cookies.txt` download, for uploading on another server (the only route that returns cookie values) |
 
 There is no login. The app is meant for a home or office network, so don't expose the port to the internet.
 
@@ -111,4 +152,5 @@ There is no login. The app is meant for a home or office network, so don't expos
 
 - **No email:** on Settings, use "Send test email" under Sending email. The error text says what failed (e.g. Gmail needs an App Password). Then open the latest entry under Activity to see its log.
 - **Ollama unreachable:** check `OLLAMA_HOST`, that the model is pulled (`ollama pull llama3.2`), and that Ollama listens on the network.
+- **"Sign in to confirm" / members-only errors:** add your cookies under Settings → YouTube sign-in. YouTube also sometimes blocks datacenter and VPN IP addresses.
 - **YouTube errors:** yt-dlp changes often. Rebuild to pick up a newer pinned version: bump `yt-dlp` in `backend/pyproject.toml`, run `uv lock`, then `docker compose up --build -d`.

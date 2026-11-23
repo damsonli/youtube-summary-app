@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { toolLink } from '../format.js'
 
 const PROVIDER_NAMES = { ollama: 'Ollama', openai: 'OpenAI', claude: 'Claude' }
 
@@ -64,8 +65,11 @@ export default function Article({ video, onDelete }) {
             </>
           )}
         </p>
+        <p className="mt-3">
+          <a href={toolLink('download', video.url)}>Download video</a>
+        </p>
         {onDelete && (
-          <button type="button" className="btn-text mt-3 text-sm" onClick={() => onDelete(video.id)}>
+          <button type="button" className="btn-text mt-2 block text-sm" onClick={() => onDelete(video.id)}>
             Remove from library
           </button>
         )}

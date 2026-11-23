@@ -20,13 +20,13 @@ function Step({ n, title, done, children }) {
   )
 }
 
-export default function Channels() {
+export default function Channels({ params = {} }) {
   const [status, setStatus] = useState(null)
   const [email, setEmail] = useState(storage.get('email'))
   const [draftEmail, setDraftEmail] = useState(storage.get('email'))
   const [editingEmail, setEditingEmail] = useState(!storage.get('email'))
   const [subs, setSubs] = useState(null)
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState(params.url ?? '')
   const [adding, setAdding] = useState(false)
   const [confirming, setConfirming] = useState(null)
   const [note, setNote] = useState(null)

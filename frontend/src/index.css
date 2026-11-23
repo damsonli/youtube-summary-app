@@ -3,50 +3,57 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* YouTube's palette: white / near-black surfaces, neutral greys, blue links, red accent. */
 :root {
-  --paper: #ecefe8;
-  --paper-raised: #f6f8f3;
-  --ink: #1c2a2b;
-  --ink-soft: #4d5c5c;
-  --ink-faint: #7b8786;
-  --rule: #c9d0c5;
-  --link: #2846c8;
-  --mark: #f1d54a;
-  --mark-ink: #1c2a2b;
-  --danger: #a3261b;
-  --ok: #2f6b3c;
-  --focus: #2846c8;
+  --paper: #ffffff;
+  --paper-raised: #f2f2f2;
+  --ink: #0f0f0f;
+  --ink-soft: #606060;
+  --ink-faint: #909090;
+  --rule: #e5e5e5;
+  --link: #065fd4;
+  --accent: #ff0033;
+  --accent-ink: #ffffff;
+  --mark: #ffd6dc;
+  --mark-ink: #0f0f0f;
+  --danger: #cc0000;
+  --ok: #107516;
+  --focus: #065fd4;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #141c1d;
-    --paper-raised: #1b2526;
-    --ink: #e2e7df;
-    --ink-soft: #aab4ae;
-    --ink-faint: #7f8b86;
-    --rule: #2f3b3b;
-    --link: #93a9ff;
-    --mark: #6d5f18;
-    --mark-ink: #f6efc8;
-    --danger: #ff8a7a;
-    --ok: #8fd19e;
-    --focus: #93a9ff;
+    --paper: #0f0f0f;
+    --paper-raised: #272727;
+    --ink: #f1f1f1;
+    --ink-soft: #aaaaaa;
+    --ink-faint: #717171;
+    --rule: #3f3f3f;
+    --link: #3ea6ff;
+    --accent: #ff0033;
+    --accent-ink: #ffffff;
+    --mark: #5c1622;
+    --mark-ink: #ffffff;
+    --danger: #ff4e45;
+    --ok: #2ba640;
+    --focus: #3ea6ff;
   }
 }
 :root[data-theme="dark"] {
-  --paper: #141c1d;
-  --paper-raised: #1b2526;
-  --ink: #e2e7df;
-  --ink-soft: #aab4ae;
-  --ink-faint: #7f8b86;
-  --rule: #2f3b3b;
-  --link: #93a9ff;
-  --mark: #6d5f18;
-  --mark-ink: #f6efc8;
-  --danger: #ff8a7a;
-  --ok: #8fd19e;
-  --focus: #93a9ff;
+  --paper: #0f0f0f;
+  --paper-raised: #272727;
+  --ink: #f1f1f1;
+  --ink-soft: #aaaaaa;
+  --ink-faint: #717171;
+  --rule: #3f3f3f;
+  --link: #3ea6ff;
+  --accent: #ff0033;
+  --accent-ink: #ffffff;
+  --mark: #5c1622;
+  --mark-ink: #ffffff;
+  --danger: #ff4e45;
+  --ok: #2ba640;
+  --focus: #3ea6ff;
 }
 
 @theme {
@@ -60,6 +67,7 @@
   --color-rule: var(--rule);
   --color-link: var(--link);
   --color-mark: var(--mark);
+  --color-accent: var(--accent);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
 }
@@ -127,7 +135,7 @@ a:hover { text-decoration-thickness: 2px; }
   width: 100%;
   background: var(--paper-raised);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink);
   padding: 0.6rem 0.75rem;
   font: inherit;
@@ -137,15 +145,31 @@ a:hover { text-decoration-thickness: 2px; }
 
 .btn {
   display: inline-flex; align-items: center; gap: 0.4rem;
-  border-radius: 6px; padding: 0.55rem 1rem;
+  border-radius: 999px; padding: 0.55rem 1.1rem;
   font: inherit; font-weight: 600; font-size: 0.9375rem;
   background: var(--ink); color: var(--paper);
   border: 1px solid var(--ink); cursor: pointer;
 }
-.btn:hover { opacity: 0.88; }
+.btn:hover { opacity: 0.85; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-quiet { background: transparent; color: var(--ink); border-color: var(--rule); }
-.btn-quiet:hover { border-color: var(--ink-soft); opacity: 1; }
+/* Tonal secondary button, like YouTube's grey "Share" / "Save" pills. */
+.btn-quiet { background: var(--paper-raised); color: var(--ink); border-color: transparent; }
+.btn-quiet:hover { background: var(--rule); opacity: 1; }
+
+/* Nav chips, like YouTube's category chips: grey at rest, inverted when selected. */
+.chip {
+  display: inline-block; border-radius: 8px; padding: 0.35rem 0.8rem;
+  background: var(--paper-raised); color: var(--ink);
+  font-weight: 500; text-decoration: none;
+}
+.chip:hover { background: var(--rule); }
+.chip[aria-current="page"] { background: var(--ink); color: var(--paper); }
+
+/* Brand mark: a summary page (text lines) with a red progress bar. Inverts with the theme. */
+.logo-mark { flex: none; }
+.logo-mark-tile { fill: var(--ink); }
+.logo-mark-line { fill: var(--paper); }
+.logo-mark-bar { fill: var(--accent); }
 .btn-text { background: none; border: 0; padding: 0; color: var(--ink-soft); font-weight: 500; cursor: pointer; font: inherit; }
 .btn-text:hover { color: var(--danger); text-decoration: underline; }
 
